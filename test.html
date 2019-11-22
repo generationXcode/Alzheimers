@@ -1,0 +1,476 @@
+<script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+  <style media="screen">
+    #container{
+      height:50%;
+      width:50%;
+      position:absolute;
+      left:5%;top:5%;
+      background-color:gray
+    }
+
+    .rotate90 {
+    -webkit-transform: rotate(90deg);
+    -moz-transform: rotate(90deg);
+    -o-transform: rotate(90deg);
+    -ms-transform: rotate(90deg);
+    transform: rotate(90deg);
+}
+  </style>
+  <div id="root">
+
+  </div>
+
+
+
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@0.14.1/dist/tf.min.js"></script>
+
+
+
+
+<script type="text/babel">
+
+  class OldLady extends React.Component {
+    constructor(props){
+      super(props);
+      this.state={
+        control:true,
+        pos:[29,45 ],
+        status:"",
+        location:"",
+        houseAction:"",
+        random:true
+      };
+      this.forward=false;
+      this.backward = false;
+      this.left = false;
+      this.right = false;
+      this.goUp=this.goUp.bind(this);
+      this.goDown = this.goDown.bind(this);
+      this.goRight = this.goRight.bind(this);
+      this.goLeft = this.goLeft.bind(this);
+      this.places = ["kitchen","bedroom","toilet","corridoor","living room"];
+      this.userActions = ["pooping","sleeping","loitering","cooking","watching TV"];
+      this.smartHomeActions = ["flushed and prompted the patient to wash hands","switched off the fan","Switched off the stove","switched off the TV and lights"]
+      this.prevStatus="";
+      this.ChangeControls=this.ChangeControls.bind(this);
+      this.xs=[];
+      this.ys=[];
+      this.model;
+      this.changeComputerControls=this.changeComputerControls.bind(this);
+    }
+
+
+
+
+    trainML(){
+      //model.predict(x)
+      this.x=tf.tensor2d(this.xs);
+      this.y=tf.tensor2d(this.ys);
+      this.model=tf.sequential();
+      const hidden = tf.layers.dense({
+          units:4,
+          inputShape:[2],
+          activation:'sigmoid'
+      });
+      const output = tf.layers.dense({
+          units:2,
+          activation:'sigmoid'
+      });
+      this.model.add(hidden);
+      this.model.add(output);
+      const config = {
+          optimizer:tf.train.sgd(0.3),
+          loss:tf.losses.absoluteDifference
+      }
+      this.model.compile(config);
+        this.model.fit(this.x,this.y,{epochs:100});
+      console.log("trained");
+    }
+
+
+
+
+
+
+    move(){
+      const newPos=this.state.pos.slice();
+      if(!(this.state.control == true)){
+        if(this.state.random == true){
+          const velocity = Math.floor(Math.random()*3)-1;
+          newPos[Math.abs(Math.floor(Math.random()*2))] += velocity;
+        }
+        else{
+      const moveTo=this.model.predict(tf.tensor2d([this.state.pos])).dataSync();
+      let speed=0;
+      let axis;
+
+      newPos[0] += Math.round(Math.abs(moveTo[0]))-1;
+      newPos[1] += Math.round(Math.abs(moveTo[1]))-1;
+    }
+    }
+
+
+
+
+
+
+    else{
+      if(this.forward==true || this.backward == true || this.left == true || this.right == true){
+      if(this.forward==true){
+        newPos[1]-=1;
+        this.forward = false;
+        this.ys.push([2,0]);
+      }
+      else if(this.backward == true){
+        newPos[1]+=1;
+        this.backward=false;
+        this.ys.push([2,0]);
+      }
+      else if(this.left == true){
+        newPos[0] -= 1;
+        this.left = false;
+        this.ys.push([0,1]);
+      }
+      else if(this.right == true){
+        newPos[0] += 1;
+        this.right = false;
+        this.ys.push([0,2]);
+      }
+      this.xs.push(this.state.pos);
+      console.log(this.xs)
+    }
+    }
+
+
+
+
+
+      if (newPos[0] > 50){
+        newPos[0] -= 10;
+      }
+      else if (newPos[0] < -30){
+        newPos[0] +=10;
+      }
+      else if (newPos[1] > 167){
+        newPos[1] -= 10;
+      }
+      else if(newPos[1] <0){
+        newPos[1]+=10;
+      }
+      else if(newPos[0] === 12 && newPos[1] < 115){
+        if(!((newPos[1]<20 && newPos[1]>10) || (newPos[1] <75 && newPos[1]>65) || (newPos[1] <90 && newPos[1]>80))){
+          if(this.state.pos[0] < 12){
+            newPos[0]=5;
+          }
+          else {
+            newPos[0]=20;
+      }
+    }
+    //pir sensor
+    else{
+      if(newPos[0]>12 && newPos[0]<30 && newPos[1]>0 && newPos[1] < 111){
+        this.setState({location:this.places[3]});
+      }
+      else{
+      if((newPos[1]<20 && newPos[1]>10)){
+        if(this.state.pos[0]<12){
+        this.setState({location:this.places[3]});
+      }
+      else{
+        this.prevStatus=this.userActions[3];
+        this.setState({location:this.places[0],status:this.userActions[3]});
+
+       }
+      }
+      else if((newPos[1] <75 && newPos[1]>65)){
+        if(this.state.pos[0]<12){
+        this.setState({location:this.places[3]});
+      }
+      else{
+        this.prevStatus=this.userActions[0];
+        this.setState({location:this.places[2],status:this.userActions[0]});
+       }
+      }
+      else if((newPos[1] <90 && newPos[1]>80)){
+        if(this.state.pos[0]<12){
+        this.setState({location:this.places[3]});
+      }
+      else{
+        this.prevStatus=this.userActions[1];
+        this.setState({location:this.places[1],status:this.userActions[1]});
+       }
+      }
+    }
+    }
+
+  }
+      else if((newPos[0] === 30) && newPos[1] < 115){
+        if(!((newPos[1]<20 && newPos[1]>10) || (newPos[1] <60 && newPos[1]>50) || (newPos[1] <90 && newPos[1]>80))){
+          if(this.state.pos[0] > 29){
+            newPos[0] = 40;
+          }
+          else{
+            newPos[0] = 20;
+          }
+      }
+      //pir sensor
+      else{
+        if(newPos[0]>12 && newPos[0]<30 && newPos[1]>0 && newPos[1] < 111){
+          this.setState({location:this.places[3]});
+        }
+        else{
+        if((newPos[1]<20 && newPos[1]>10)){
+          if(this.state.pos[0]>30){
+          this.setState({location:this.places[3]});
+        }
+        else{
+          this.prevStatus=this.userActions[1];
+          this.setState({location:this.places[1],status:this.userActions[1]});
+         }
+        }
+        else if((newPos[1] <60 && newPos[1]>50)){
+          if(this.state.pos[0]>30){
+          this.setState({location:this.places[3]});
+        }
+        else{
+          this.prevStatus=this.userActions[0];
+          this.setState({location:this.places[2],status:this.userActions[0]});
+         }
+        }
+        else if((newPos[1] <90 && newPos[1]>80)){
+          if(this.state.pos[0]>30){
+          this.setState({location:this.places[3]});
+        }
+        else{
+          this.prevStatus=this.userActions[1];
+          this.setState({location:this.places[1],status:this.userActions[1]});
+         }
+        }
+      }
+      }
+    }
+
+      else if ((newPos[1] === 111)) {
+        if(newPos[0]>12 && newPos[0]<30 && newPos[1]>0 && newPos[1] < 111){
+          this.setState({location:this.places[3]});
+        }
+        else{
+          this.prevStatus=this.userActions[4]
+        this.setState({location:this.places[4],status:this.userActions[4]});
+      }
+    }
+    else if(newPos[0]>12 && newPos[0]<30 && newPos[1]>0 && newPos[1] < 111){
+      this.setState({location:this.places[3],status:this.userActions[2]});
+      if(this.prevStatus == this.userActions[0]){
+        this.setState({houseAction:this.smartHomeActions[0]})
+      }
+      else if(this.prevStatus == this.userActions[1]){
+        this.setState({houseAction:this.smartHomeActions[1]})
+      }
+      else if(this.prevStatus == this.userActions[3]){
+        this.setState({houseAction:this.smartHomeActions[2]})
+      }
+      else if(this.prevStatus == this.userActions[4]){
+        this.setState({houseAction:this.smartHomeActions[3]})
+      }
+    }
+
+      else if((newPos[0] < 12) && newPos[1] === 115){
+        if(this.state.pos[1] > 115){
+          newPos[1]=130;
+        }
+        else{
+          newPos[1]=110
+        }
+      }
+      else if((newPos[0] < 12) && newPos[1] === 60){
+        if(this.state.pos[1] > 60){
+          newPos[1]=65;
+        }
+        else{
+          newPos[1]=55;
+        }
+      }
+      else if((newPos[0] < 12) && newPos[1] === 80){
+        if(this.state.pos[1] > 80){
+          newPos[1]=85;
+        }
+        else{
+          newPos[1]=75;
+        }
+      }
+      else if((newPos[0] > 30) && newPos[1] === 115){
+        if(this.state.pos[1] > 115){
+          newPos[1]=130;
+        }
+        else{
+          newPos[1]=110;
+        }
+      }
+      else if((newPos[0] > 30) && newPos[1] === 70){
+        if(this.state.pos[1] > 70){
+          newPos[1]=80;
+        }
+        else{
+          newPos[1]=60;
+        }
+      }
+      else if((newPos[0] > 30) && newPos[1] === 40){
+        if(this.state.pos[1] > 40){
+          newPos[1]=50;
+        }
+        else{
+          newPos[1]=30;
+        }
+
+      }
+      this.setState({
+        pos:newPos,
+      });
+    }
+    ChangeControls(e){
+      this.setState({control:!this.state.control});
+      this.trainML();
+    }
+    changeComputerControls(e){
+      this.setState({random:!this.state.random});
+    }
+    goUp(e){
+      this.forward=true;
+    }
+    goDown(e){
+      this.backward=true;
+    }
+    goRight(e){
+      this.right=true;
+    }
+    goLeft(e){
+      this.left=true;
+    }
+    componentDidMount(){
+      this.timerID = setInterval(
+      ()=>this.move(),
+      20)
+    }
+    componentWillUnmount() {
+    clearInterval(this.timerID);
+  }
+  render(){
+      return(
+
+      <div id="container"  >
+        <span>x:{this.state.pos[0]},y:{this.state.pos[1]}</span><br/>
+        <span>location:{this.state.location}</span><br/>
+        <span>status:{this.state.status}</span><br/>
+        <span>house action:{this.state.houseAction}</span><br/>
+        <span>is the person moved using the dumbest AI ever by the computer?: {this.state.random == true? "no" : "yes"}</span>
+        <button type="button" name="button" style={{height:"50px",width:"100px",position:"absolute",left:"80%", top:"5%"}} onClick={this.changeComputerControls}> Change the computer controls</button>
+        <button type="button" name="button" style={{height:"50px",width:"100px",position:"absolute",left:"80%", top:"20%"}} onClick={this.ChangeControls}> Change Controls</button>
+        <button type="button" name="button" style={{height:"50px",width:"50px",position:"absolute",left:"80%", top:"45%"}} onMouseEnter={this.goUp} onClick={this.goUp}>up</button>
+        <button type="button" name="button" style={{height:"50px",width:"50px",position:"absolute",left:"80%", top:"75%"}} onClick={this.goDown} onMouseEnter={this.goDown}>down</button>
+        <button type="button" name="button" style={{height:"50px",width:"50px",position:"absolute",left:"87%", top:"60%"}} onClick={this.goRight} onMouseEnter={this.goRight}>right</button>
+        <button type="button" name="button" style={{height:"50px",width:"50px",position:"absolute",left:"73%", top:"60%"}} onClick={this.goLeft} onMouseEnter={this.goLeft}>left</button>
+
+        <div style={{height:"54px",width:"107.5px",position:"absolute",left:"170px",top:"314.5px",backgroundColor:"yellow"}} ></div>
+        <div style={{height:"57px",width:"40.25px",position:"absolute",left:"170px",top:"200px",backgroundColor:"red"}} alt=""></div>
+        <div style={{height:"40.5px",width:"24px",position:"absolute",left:"240.625px",top:"240px",backgroundColor:"white"}} className="rotate90" alt=""> </div>
+        <div style={{height:"42px",width:"45.25px",position:"absolute",left:"229.625px",top:"200px",backgroundColor:"green"}} alt=""> </div>
+
+
+        <div style={{height:"45px",width:"45.25px",position:"absolute",left:"229.625px",top:"275px",backgroundColor:"green"}} alt=""> </div>
+        <div style={{height:"37px",width:"45.25px",position:"absolute",left:"170px",top:"280.7px",backgroundColor:"green"}} alt=""> </div>
+
+
+        <div style={{height:"24px",width:"40.5px",position:"absolute",left:"170px",top:"257px",backgroundColor:"white"}} alt=""> </div>
+
+        <div style={{height:"168.5px",width:"5px",position:"absolute",left:"170px",top:"200px",backgroundColor:"blue"}}>
+
+        </div>
+        <div style={{height:"5px",width:"104.5px",position:"absolute",left:"170px",top:"200px",backgroundColor:"blue"}}>
+
+        </div>
+        <div style={{height:"168.5px",width:"5px",position:"absolute",left:"274.125px",top:"200px",backgroundColor:"blue"}}>
+
+        </div>
+        <div style={{height:"5px",width:"107.5px",position:"absolute",left:"170px",top:"368.5px",backgroundColor:"blue"}}>
+
+        </div>
+
+
+
+
+        <div style={{height:"5px",width:"44.5px",position:"absolute",left:"170px",top:"314.5px",backgroundColor:"blue"}}>
+
+        </div>
+        <div style={{height:"5px",width:"44.5px",position:"absolute",left:"230.5px",top:"314.5px",backgroundColor:"blue"}}>
+
+        </div>
+
+
+        <div style={{height:"5px",width:"40.25px",position:"absolute",left:"170px",top:"257px",backgroundColor:"blue"}}>
+
+        </div>
+        <div style={{height:"5px",width:"40.25px",position:"absolute",left:"170px",top:"280.75px",backgroundColor:"blue"}}>
+
+        </div>
+        <div style={{height:"5px",width:"44.5px",position:"absolute",left:"230.5px",top:"242px",backgroundColor:"blue"}}>
+
+        </div>
+
+        <div style={{height:"5px",width:"44.5px",position:"absolute",left:"230.5px",top:"270.625px",backgroundColor:"blue"}}>
+
+        </div>
+
+
+        <div style={{height:"114.5px",width:"5px",position:"absolute",left:"210.25px",top:"200px",backgroundColor:"blue"}}>
+
+        </div>
+
+        <div style={{height:"114.5px",width:"5px",position:"absolute",left:"229.625px",top:"200px",backgroundColor:"blue"}}>
+
+        </div>
+
+
+        {/*doors*/}
+
+
+        <div style={{height:"10px",width:"5px",position:"absolute",left:"229.625px",top:"210px",backgroundColor:"white"}}>
+
+        </div>
+
+        <div style={{height:"10px",width:"5px",position:"absolute",left:"229.625px",top:"250px",backgroundColor:"white"}}>
+
+        </div>
+
+        <div style={{height:"10px",width:"5px",position:"absolute",left:"229.625px",top:"290px",backgroundColor:"white"}}>
+
+        </div>
+
+        <div style={{height:"10px",width:"5px",position:"absolute",left:"210.5px",top:"210px",backgroundColor:"white"}}>
+
+        </div>
+
+        <div style={{height:"10px",width:"5px",position:"absolute",left:"210.5px",top:"265px",backgroundColor:"white"}}>
+
+        </div>
+
+        <div style={{height:"10px",width:"5px",position:"absolute",left:"210.5px",top:"290px",backgroundColor:"white"}}>
+
+        </div>
+
+        <div style={{height:"5px",width:"19px",position:"absolute",left:"213px",top:"314px",backgroundColor:"white"}}>
+
+        </div>
+        <div id="lady" style={{height:"10px",width:"10px",backgroundColor:"purple",position:"absolute",left:this.state.pos[0]+200+'px',top:this.state.pos[1]+200+'px'}}>
+
+        </div>
+      </div>
+      )
+    }
+  }
+  ReactDOM.render(<OldLady/>,document.getElementById("root"));
+</script>
